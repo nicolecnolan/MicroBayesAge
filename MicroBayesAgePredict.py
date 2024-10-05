@@ -147,7 +147,6 @@ def construct_reference(sample_df, beta_ref_df, low_age_bound, top_age_bound):
             ax.set_zlabel('Variance')
         
         var_ref[CpG_site] = predicted_variance
-    fig.savefig("top_16_cpgs_variance_vs_meth.png", dpi = 300) # bbox_inches = "tight_layout")
     plt.show()
 
     for k in var_ref.keys():
