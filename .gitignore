@@ -3,3 +3,4 @@
 /output_files/*.txt
 /*.pickle
 *.gz
+*.pyc
