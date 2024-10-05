@@ -1,0 +1,5 @@
+/data_files/*.pickle
+/output_files/*.pickle
+/output_files/*.txt
+/*.pickle
+*.gz
