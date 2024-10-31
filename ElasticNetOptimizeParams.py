@@ -11,7 +11,7 @@ from loess.loess_2d import loess_2d
 from enum import Enum
 from matplotlib.lines import Line2D
 from sklearn.metrics import r2_score
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RepeatedKFold
 
@@ -33,14 +33,15 @@ print("X has shape", X.shape)
 y = train_data[:, -1]
 print("y has shape", y.shape)
 
-model = Lasso() # define model
+model = ElasticNet() # define model
 
 # define model evaluation method
 cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
 
 # define grid
 grid = dict()
-grid['alpha'] = arange(0.01, 1, 0.01)
+grid['alpha'] = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
+grid['l1_ratio'] = arange(0, 1, 0.01)
 
 # define search
 search = GridSearchCV(model, grid, scoring='neg_mean_absolute_error', cv=cv, n_jobs=-1)

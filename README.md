@@ -18,17 +18,17 @@ Install required Python packages.
     pip install tqdm
     pip install typing_extensions
 
-## How to Use
+## How to Use MicroBayesAge
 
 Clone this repo.
 
     git clone https://github.com/nicolecnolan/MicroBayesAge
 
-Change to the cloned repo folder.
+Access the cloned repo folder.
 
     cd MicroBayesAge
 
-GitHub imposes a file size limit. The input dataset has been split into a collection of small Python [pickle](https://docs.python.org/3/library/pickle.html) files. Ensure that you have approximately 23 GB of disk space available before downloading the data files using the provided command.
+GitHub imposes a file size limit. The input dataset has been split into a collection of small Python [pickle](https://docs.python.org/3/library/pickle.html) files. Ensure that you have approximately 23 GB of disk space available before downloading the data files using the command provided below.
 
     python DownloadData.py
 
@@ -128,4 +128,32 @@ Then generate age predictions for the corresponding testing dataset.
 
     python MicroBayesAgePredict.py 0_train_DNAm_matrix.pickle 0_test_DNAm_matrix.pickle
 
-Using the `ConstructTrainingReferences.py` and `MicroBayesAgePredict.py` as shown, you can train the model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.
+Using the `ConstructTrainingReferences.py` and `MicroBayesAgePredict.py` as shown, you can train the MicroBayesAge model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.
+
+## LASSO Comparison
+
+First find the optimal LASSO lambda parameter for a particular training dataset.
+
+    python LassoOptimizeParams.py 0_train_DNAm_matrix.pickle
+
+You should now see in your Command Prompt window a printout resembling this `Config: {'alpha': 0.01}`. The float value printed in your Command Prompt window is the optimal LASSO lambda parameter for this particular training dataset.
+
+Now use the optimized LASSO model to predict the age of the corresponding testing dataset. Copy the command provided below but replace the first argument with whatever optimal lambda parameter you previously found using `LassoOptimizeParams.py`.
+
+    python LassoAgePredict.py 0.01 0_train_DNAm_matrix.pickle 0_test_DNAm_matrix.pickle
+
+Using `LassoOptimizeParams.py` and `LassoAgePredict.py` as shown, you can train the LASSO model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.
+
+## ElasticNet Comparison
+
+First find the optimal ElasticNet parameters for a particular training dataset.
+
+    python ElasticNetOptimizeParams.py 0_train_DNAm_matrix.pickle
+
+You should now see in your Command Prompt window a printout resembling this `Config: {'alpha': 0.001, 'l1_ratio': 0.72}`. The float values printed in your Command Prompt window are the optimal ElasticNet lambda parameter and L1 ratio for this particular training dataset.
+
+Now use the optimized ElasticNet model to predict the age of the corresponding testing dataset. Copy the command provided below but replace the first two arguments with whatever optimal lambda parameter and L1 ratio you previously found using `ElasticNetOptimizeParams.py`.
+
+    python ElasticNetAgePredict.py 0.001 0.72 0_train_DNAm_matrix.pickle 0_test_DNAm_matrix.pickle
+
+Using `ElasticNetOptimizeParams.py` and `ElasticNetAgePredict.py` as shown, you can train the ElasticNet model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.

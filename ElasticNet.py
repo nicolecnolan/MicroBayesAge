@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+from numpy import arange
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import random
@@ -10,26 +11,28 @@ from loess.loess_2d import loess_2d
 from enum import Enum
 from matplotlib.lines import Line2D
 from sklearn.metrics import r2_score
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import ElasticNet
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedKFold
 
 if len (sys.argv) != 3:
-    print ("Required parameters: LambdaParameter TrainFileName TestFileName")
+    print ("Required parameters: LambdaParameter L1Ratio TrainFileName TestFileName")
     exit ()
 
 sLambdaParameter = sys.argv [1]
-sTrainFileName   = sys.argv [2]
-sTestFileName    = sys.argv [3]
+sL1Ratio         = sys.argv [2]
+sTrainFileName   = sys.argv [3]
+sTestFileName    = sys.argv [4]
 
 # Optimized ElasticNet paramaters: 'alpha': 0.001, 'l1_ratio': 0.72
 lambda_param = float(sLambdaParameter)
+l1_param = float(sL1Ratio)
 
 # Optimized LOWESS parameter: 'tau': 0.7
 tau = 0.7
 
-test_DNAm_df = pd.read_pickle(sTestFileName)
+# Load training dataset
 train_DNAm_df = pd.read_pickle(sTrainFileName)
-print(test_DNAm_df.shape)
-print(test_DNAm_df.head())
 print(train_DNAm_df.shape)
 print(train_DNAm_df.head())
 
@@ -41,10 +44,16 @@ print("X has shape", X.shape)
 y = train_data[:, -1]
 print("y has shape", y.shape)
 
-model = Lasso(alpha=lambda_param) # define model
+# Define the model
+model = ElasticNet(alpha=lambda_param, l1_ratio=l1_param)
 
-print("Fitting model")
-model.fit(X, y) # fit model
+# Fit the model to the training data
+model.fit(X, y)
+
+# Load the test dataset
+test_DNAm_df = pd.read_pickle(sTestFileName)
+print(test_DNAm_df.shape)
+print(test_DNAm_df.head())
 
 test_data = test_DNAm_df.values
 test_data = test_data[:, :-1]
@@ -54,8 +63,10 @@ if( "SampleID" not in test_DNAm_df.columns ):
     test_DNAm_df = test_DNAm_df.reset_index()
     print(test_DNAm_df.head())
 
+# Make age predictions
 print("Calculating predictions")
 age_predictions = model.predict(test_data)
+print(age_predictions)
 
 predictions = {}
 for sample in test_DNAm_df.index:
@@ -89,7 +100,7 @@ def calculate_error(test_df, prediction_df, sTitle):
 
     plt.scatter(x=x, y=y, c='tan')
 
-    plt.title("LASSO Predictions for " + sTitle, fontname = "Arial", fontsize = 20)
+    plt.title("ElasticNet Predictions for " + sTitle, fontname = "Arial", fontsize = 20)
     plt.xlabel("Real Age")
     plt.ylabel("Predicted Age")
     plt.annotate("R^2 = " + str(round(r_squared, 3)), xy=(0.15, 0.80), xycoords='figure fraction')
@@ -133,7 +144,7 @@ def plot_residuals(test_df, prediction_df, sTitle):
     
     sub.scatter(x,y, color = 'tan')
 
-    sub.set_title("Residual Plot of LASSO Predictions for " + sTitle + " Patients", fontname = "Arial", fontsize = 20)
+    sub.set_title("Residual Plot of ElasticNet Predictions for " + sTitle + " Patients", fontname = "Arial", fontsize = 20)
 
     sub.set_xlabel("Real Age", fontname = "Times New Roman", fontsize=20)
     sub.set_ylabel("Residuals", fontname = "Times New Roman", fontsize=20)
