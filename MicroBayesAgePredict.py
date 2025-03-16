@@ -32,9 +32,9 @@ split_age = 25
 max_age = 100
 age_step = 1
 
-main_color = 'gray'
-young_color = 'green'
-old_color = 'steelblue'
+main_color = 'gray' # all = gray, male = saddlebrown, female = mediumpurple
+young_color = 'green' # all = green, male = darkorange, female = salmon
+old_color = 'steelblue' # all = steelblue, male = darkgoldenrod, female = maroon
 
 print ("Reading pickle file", sTrainFileName)
 train_DNAm_df = pd.read_pickle(sTrainFileName)
@@ -241,6 +241,7 @@ def calculate_error(test_df, prediction_df, sTitle):
     print(results.params)
     print(results.summary())
 
+    # Plot Real Age vs Predicted Age
     plt.rc("figure", figsize=(8, 5))
     plt.rc("font", size=12)
 
@@ -254,7 +255,48 @@ def calculate_error(test_df, prediction_df, sTitle):
     plt.annotate("R^2 = " + str(round(r_squared, 3)), xy=(0.15, 0.80), xycoords='figure fraction')
 
     a,b = np.polyfit(x, y, 1)
-    plt.plot(x, a*x+b, color='k')
+    y_fit = a*x+b
+
+    plt.annotate("y = " + str(round(a, 3)) + "x + " + str(round(b, 3)), xy=(0.15, 0.75), xycoords='figure fraction')
+
+    plt.plot(x, y_fit, color='k')
+    plt.show()
+
+    # Plot deviance from best fit
+    deviance = y - y_fit
+
+    if "Old" == sTitle:
+        color = old_color
+    elif "Young" == sTitle:
+        color = young_color
+    else:
+        color = main_color
+
+    smoothed_deviance = lowess(deviance.to_numpy(), x.to_numpy(), frac=tau)
+
+    fig = plt.figure(figsize=(10, 10), layout="tight")
+
+    sub = fig.add_subplot()
+
+    line1 = Line2D(smoothed_deviance[:,0], smoothed_deviance[:,1], color = "red", linewidth=3)
+    sub.add_line(line1)
+    sub.legend(["LOWESS fit"])
+    
+    sub.axhline(y=0, color='black', linewidth=1)
+
+    sub.scatter(x, deviance, color = color)
+
+    sub.set_title("Deviation from Linear Fit of BayesAge Predictions for " + sTitle, fontname = "Arial", fontsize = 20)
+
+    sub.set_xlabel("Real Age", fontname = "Times New Roman", fontsize=20)
+    sub.set_ylabel("Deviation from Linear Fit", fontname = "Times New Roman", fontsize=20)
+
+    sub.set_ylim([-35, 25])
+
+    z = np.polyfit(x, deviance, 1)
+    p = np.poly1d(z)
+    sub.plot(x, p(x), color="k", linewidth=3, linestyle="--")
+
     plt.show()
 
     actual = mini_merged_df['Age_x'].tolist()
@@ -297,6 +339,8 @@ def plot_residuals(test_df, prediction_df, sTitle):
     sub.add_line(line1)
     sub.legend(["LOWESS fit"])
     
+    sub.axhline(y=0, color='black', linewidth=1)
+
     sub.scatter(x,y, color = color)
 
     sub.set_title("Residual Plot of BayesAge Predictions for " + sTitle + " Patients", fontname = "Arial", fontsize = 20)

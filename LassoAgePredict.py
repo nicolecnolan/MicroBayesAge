@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 from sklearn.metrics import r2_score
 from sklearn.linear_model import Lasso
 
-if len (sys.argv) != 3:
+if len (sys.argv) != 4:
     print ("Required parameters: LambdaParameter TrainFileName TestFileName")
     exit ()
 
@@ -20,7 +20,7 @@ sLambdaParameter = sys.argv [1]
 sTrainFileName   = sys.argv [2]
 sTestFileName    = sys.argv [3]
 
-# Optimized ElasticNet paramaters: 'alpha': 0.001, 'l1_ratio': 0.72
+# Optimized LASSO paramaters: 'alpha': 0.001
 lambda_param = float(sLambdaParameter)
 
 # Optimized LOWESS parameter: 'tau': 0.7
@@ -95,7 +95,41 @@ def calculate_error(test_df, prediction_df, sTitle):
     plt.annotate("R^2 = " + str(round(r_squared, 3)), xy=(0.15, 0.80), xycoords='figure fraction')
 
     a,b = np.polyfit(x, y, 1)
-    plt.plot(x, a*x+b, color='k')
+    y_fit = a*x+b
+
+    plt.annotate("y = " + str(round(a, 3)) + "x + " + str(round(b, 3)), xy=(0.15, 0.75), xycoords='figure fraction')
+
+    plt.plot(x, y_fit, color='k')
+    plt.show()
+
+    # Plot deviance from best fit
+    deviance = y - y_fit
+
+    smoothed_deviance = lowess(deviance.to_numpy(), x.to_numpy(), frac=tau)
+
+    fig = plt.figure(figsize=(10, 10), layout="tight")
+
+    sub = fig.add_subplot()
+
+    line1 = Line2D(smoothed_deviance[:,0], smoothed_deviance[:,1], color = "red", linewidth=3)
+    sub.add_line(line1)
+    sub.legend(["LOWESS fit"])
+
+    sub.axhline(y=0, color='black', linewidth=1)
+    
+    sub.scatter(x, deviance, color = 'tan')
+
+    sub.set_title("Deviation from Linear Fit of LASSO Predictions for " + sTitle, fontname = "Arial", fontsize = 20)
+
+    sub.set_xlabel("Real Age", fontname = "Times New Roman", fontsize=20)
+    sub.set_ylabel("Deviation from Linear Fit", fontname = "Times New Roman", fontsize=20)
+
+    sub.set_ylim([-35, 25])
+
+    z = np.polyfit(x, deviance, 1)
+    p = np.poly1d(z)
+    sub.plot(x, p(x), color="k", linewidth=3, linestyle="--")
+
     plt.show()
 
     actual = mini_merged_df['Age_x'].tolist()
@@ -130,6 +164,8 @@ def plot_residuals(test_df, prediction_df, sTitle):
     line1 = Line2D(smoothed_residuals[:,0], smoothed_residuals[:,1], color = "red", linewidth=3)
     sub.add_line(line1)
     sub.legend(["LOWESS fit"])
+
+    sub.axhline(y=0, color='black', linewidth=1)
     
     sub.scatter(x,y, color = 'tan')
 
