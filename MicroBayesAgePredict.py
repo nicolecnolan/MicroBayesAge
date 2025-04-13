@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+import math
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import random
@@ -10,13 +11,16 @@ from loess.loess_2d import loess_2d
 from enum import Enum
 from matplotlib.lines import Line2D
 from sklearn.metrics import r2_score
+from scipy.stats import beta
+from scipy.stats import norm
 
-if len (sys.argv) != 3:
-    print ("Required parameters: TrainFileName TestFileName")
+if len (sys.argv) != 4:
+    print ("Required parameters: TrainFileName TestFileName SplitAge")
     exit ()
 
-sTrainFileName = sys.argv [1]
-sTestFileName  = sys.argv [2]
+sTrainFileName =     sys.argv [1]
+sTestFileName  =     sys.argv [2]
+split_age      = int(sys.argv [3])
 
 sFullReferenceMatrixName  =            sTrainFileName.replace('.pickle', '_reference_model.pickle')
 sYoungReferenceMatrixName = "young_" + sTrainFileName.replace('.pickle', '_reference_model.pickle')
@@ -28,7 +32,6 @@ var_regression_mode = Modes.METH
 tau = 0.7
 CpG_parameter = 16
 min_age = 0
-split_age = 25
 max_age = 100
 age_step = 1
 
@@ -54,9 +57,7 @@ full_beta_ref_df = reference_df.loc[reference_df["spearman_rank"].abs().nlargest
 age_steps = range(min_age,max_age+1,age_step)
 
 
-# Construct Reference: Variance
-# Bin the samples into buckets of 1 yr
-
+# Construct Reference: Variance and bin the samples into buckets of 1 yr
 def construct_reference(sample_df, beta_ref_df, low_age_bound, top_age_bound):
 
     if low_age_bound == min_age and top_age_bound != max_age:
@@ -130,7 +131,7 @@ def construct_reference(sample_df, beta_ref_df, low_age_bound, top_age_bound):
             #sub1.plot(predicted_methylation[:,0], predicted_methylation[:,1], color = "palevioletred", label = "LOWESS Predicted Methylation")
             line1 = Line2D(smoothed_meth[:,0], smoothed_meth[:,1], color = "red", linewidth=3)
             sub1.add_line(line1)
-            sub1.legend(["LOWESS fit"])
+            #sub1.legend(["LOWESS fit"])
             sub1.scatter(ages, methylations, color = color, label = "Observed Age")
             z = np.polyfit(ages, methylations, 1)
             p = np.poly1d(z)
@@ -158,15 +159,6 @@ def construct_reference(sample_df, beta_ref_df, low_age_bound, top_age_bound):
     return var_ref_df
 
 
-full_var_ref_df = construct_reference(train_DNAm_df, full_beta_ref_df, min_age, max_age)
-print(full_var_ref_df.head())
-
-
-# Age Prediction
-from scipy.stats import beta
-from scipy.stats import norm
-
-import math
 # Predict each sample
 def predict_sample(sample, beta_ref_df, var_ref_df):
     global bFirst # remove
@@ -208,22 +200,6 @@ def predict_sample(sample, beta_ref_df, var_ref_df):
     # return the maximum likelihood age
     return max(age_probabilities)[1]
 
-if( "SampleID" not in test_DNAm_df.columns ):
-    test_DNAm_df = test_DNAm_df.reset_index()
-    print(test_DNAm_df.head())
-
-print("Calculating predictions")
-predictions = {}
-for sample in test_DNAm_df.index:
-    sample_id = str(int(test_DNAm_df.iloc[sample]["SampleID"]))
-    predictions[int(sample_id)] = predict_sample(test_DNAm_df.iloc[sample], full_beta_ref_df, full_var_ref_df)
-
-print(test_DNAm_df.head())
-full_prediction_df = pd.DataFrame.from_dict(predictions, orient='index', columns=["Age"])
-print(full_prediction_df.head())
-full_prediction_df.reset_index(inplace=True, names="Sample")
-print(full_prediction_df.head())
-
 
 # Prediction Analysis
 def calculate_error(test_df, prediction_df, sTitle):
@@ -245,7 +221,7 @@ def calculate_error(test_df, prediction_df, sTitle):
     plt.rc("figure", figsize=(8, 5))
     plt.rc("font", size=12)
 
-    colors = np.where(y > 25, old_color, young_color)
+    colors = np.where(y > split_age, old_color, young_color)
     
     plt.scatter(x=x, y=y, c=colors)
 
@@ -265,9 +241,9 @@ def calculate_error(test_df, prediction_df, sTitle):
     # Plot deviance from best fit
     deviance = y - y_fit
 
-    if "Old" == sTitle:
+    if "Senior Cohort" == sTitle:
         color = old_color
-    elif "Young" == sTitle:
+    elif "Junior Cohort" == sTitle:
         color = young_color
     else:
         color = main_color
@@ -307,8 +283,11 @@ def calculate_error(test_df, prediction_df, sTitle):
     for i in range(n):
         total += abs(actual[i] - predicted[i])
 
-    error = total/n
-    return error
+    mae = total/n
+    rmse = math.sqrt((total ** 2) / n)
+
+    return mae, rmse
+
 
 # Residual Analysis
 def plot_residuals(test_df, prediction_df, sTitle):
@@ -317,9 +296,9 @@ def plot_residuals(test_df, prediction_df, sTitle):
     mini_merged_df['Residual'] = mini_merged_df['Age_x'] - mini_merged_df['Age_y']
     print(mini_merged_df)
 
-    if "Old" == sTitle:
+    if "Senior Cohort" == sTitle:
         color = old_color
-    elif "Young" == sTitle:
+    elif "Junior Cohort" == sTitle:
         color = young_color
     else:
         color = main_color
@@ -343,7 +322,7 @@ def plot_residuals(test_df, prediction_df, sTitle):
 
     sub.scatter(x,y, color = color)
 
-    sub.set_title("Residual Plot of BayesAge Predictions for " + sTitle + " Patients", fontname = "Arial", fontsize = 20)
+    sub.set_title("Residual Plot of BayesAge Predictions for " + sTitle, fontname = "Arial", fontsize = 20)
 
     sub.set_xlabel("Real Age", fontname = "Times New Roman", fontsize=20)
     sub.set_ylabel("Residuals", fontname = "Times New Roman", fontsize=20)
@@ -357,19 +336,43 @@ def plot_residuals(test_df, prediction_df, sTitle):
     plt.show()
 
 
-print("Mean absolute error for all patients: " + str(calculate_error(test_DNAm_df, full_prediction_df, "All Patients")))
+full_var_ref_df = construct_reference(train_DNAm_df, full_beta_ref_df, min_age, max_age)
+
+if( "SampleID" not in test_DNAm_df.columns ):
+    test_DNAm_df = test_DNAm_df.reset_index()
+
+print("Calculating predictions")
+predictions = {}
+for sample in test_DNAm_df.index:
+    sample_id = str(int(test_DNAm_df.iloc[sample]["SampleID"]))
+    predictions[int(sample_id)] = predict_sample(test_DNAm_df.iloc[sample], full_beta_ref_df, full_var_ref_df)
+
+print(test_DNAm_df.head())
+full_prediction_df = pd.DataFrame.from_dict(predictions, orient='index', columns=["Age"])
+full_prediction_df.reset_index(inplace=True, names="Sample")
+
+mae, rmse = calculate_error(test_DNAm_df, full_prediction_df, "All Patients")
+
+print("Mean absolute error for all patients: " + str(mae))
+print("Root mean squared error for all patients: " + str(rmse))
 
 young_subset_test_df = test_DNAm_df.loc[test_DNAm_df["Age"] <= split_age]
 mask = full_prediction_df["Sample"].isin(young_subset_test_df["SampleID"])
 young_subset_prediction_df = full_prediction_df[mask]
-print("Mean absolute error for young patients: " + str(calculate_error(young_subset_test_df, young_subset_prediction_df, "Young Patients")))
+mae, rmse = calculate_error(young_subset_test_df, young_subset_prediction_df, "Junior Cohort")
+
+print("Mean absolute error for junior cohort: " + str(mae))
+print("Root mean squared error for junior cohort: " + str(rmse))
 
 old_subset_test_df = test_DNAm_df.loc[test_DNAm_df["Age"] > split_age]
 mask = full_prediction_df["Sample"].isin(old_subset_test_df["SampleID"])
 old_subset_prediction_df = full_prediction_df[mask]
-print("Mean absolute error for old patients: " + str(calculate_error(old_subset_test_df, old_subset_prediction_df, "Old Patients")))
+mae, rmse = calculate_error(old_subset_test_df, old_subset_prediction_df, "Senior Cohort")
 
-plot_residuals(test_DNAm_df, full_prediction_df, "All")
+print("Mean absolute error for senior cohort: " + str(mae))
+print("Root mean squared error for senior cohort: " + str(rmse))
+
+plot_residuals(test_DNAm_df, full_prediction_df, "All Patients")
 
 # Creating subset of only young samples
 young_train_df = train_DNAm_df.loc[train_DNAm_df["Age"] <= split_age]
@@ -408,8 +411,12 @@ for sample in young_test_df.index:
 young_prediction_df = pd.DataFrame.from_dict(young_predictions, orient='index', columns=["Age"])
 young_prediction_df.reset_index(inplace=True, names="Sample")
 print(young_prediction_df.head())
-print("Mean absolute error for young samples: " + str(calculate_error(young_test_df, young_prediction_df, "Young Patients")))
-plot_residuals(young_test_df, young_prediction_df, "Young")
+mae, rmse = calculate_error(young_test_df, young_prediction_df, "Junior Cohort")
+
+print("Mean absolute error for junior cohort: " + str(mae))
+print("Root mean squared error for junior cohort: " + str(rmse))
+
+plot_residuals(young_test_df, young_prediction_df, "Junior Cohort")
 
 #Creating subset of only old samples
 old_train_df = train_DNAm_df.loc[train_DNAm_df["Age"] > split_age]
@@ -447,12 +454,20 @@ for sample in old_test_df.index:
 old_prediction_df = pd.DataFrame.from_dict(old_predictions, orient='index', columns=["Age"])
 old_prediction_df.reset_index(inplace=True, names="Sample")
 print(old_prediction_df.head())
-print("Mean absolute error for old samples: " + str(calculate_error(old_test_df, old_prediction_df, "Old Patients")))
-plot_residuals(old_test_df, old_prediction_df, "Old")
+mae, rmse = calculate_error(old_test_df, old_prediction_df, "Senior Cohort")
+
+print("Mean absolute error for senior cohort: " + str(mae))
+print("Root mean squared error for senior cohort: " + str(rmse))
+
+plot_residuals(old_test_df, old_prediction_df, "Senior Cohort")
 
 combined_prediction_df = pd.concat([young_prediction_df, old_prediction_df], sort=False)
 print(combined_prediction_df)
 
-print("Mean absolute error for all samples: " + str(calculate_error(test_DNAm_df, combined_prediction_df, "All Patients")))
-plot_residuals(test_DNAm_df, combined_prediction_df, "All")
+mae, rmse = calculate_error(test_DNAm_df, combined_prediction_df, "All Patients")
+
+print("Mean absolute error for all patients: " + str(mae))
+print("Root mean squared error for all patients: " + str(rmse))
+
+plot_residuals(test_DNAm_df, combined_prediction_df, "All Patients")
 

@@ -12,6 +12,7 @@ Install required Python packages.
     pip install matplotlib
     pip install numpy
     pip install pandas
+    pip install psutil
     pip install scikit-learn
     pip install scipy
     pip install statsmodels
@@ -129,6 +130,28 @@ Then generate age predictions for the corresponding testing dataset.
     python MicroBayesAgePredict.py 0_train_DNAm_matrix.pickle 0_test_DNAm_matrix.pickle
 
 Using the `ConstructTrainingReferences.py` and `MicroBayesAgePredict.py` as shown, you can train the MicroBayesAge model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.
+
+Test the full range of cutoff ages 10-30 years. This process will require several days of uninterrupted operation.
+
+    ./run.sh
+
+You can test any particular individual cutoff age by replacing the number in the command below with the cutoff age you wish to test.
+
+    ./TestSplitAge.sh 25
+
+Plot the results of your testing.
+
+    python PlotSplitAges.py
+
+To test a cutoff age for the sex-specific models, use the following commands.
+
+    ./TestSplitAgeMale.sh 25
+    ./TestSplitAgeFemale.sh 25
+
+Plot the results of sex-specific modeling.
+
+    python PlotSplitAges.py f
+    python PlotSplitAges.py m
 
 ## LASSO Comparison
 

@@ -1,5 +1,6 @@
 import os
 import sys
+import psutil
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -10,11 +11,16 @@ from loess.loess_2d import loess_2d
 from enum import Enum
 from matplotlib.lines import Line2D
 
-if len (sys.argv) != 2:
-    print ("Required parameters: TrainFileName")
+
+if len (sys.argv) != 3:
+    print ("Required parameters: TrainFileName SplitAge")
     exit ()
 
-sTrainFileName = sys.argv [1]
+sTrainFileName =     sys.argv [1]
+split_age      = int(sys.argv [2])
+
+process = psutil.Process(os.getpid())
+process.nice(psutil.HIGH_PRIORITY_CLASS)
 
 sYoungFileName = "young_" + sTrainFileName
 sOldFileName   = "old_"   + sTrainFileName
@@ -26,9 +32,9 @@ sOldReferenceMatrixName   = sOldFileName.replace  ('.pickle', '_reference_model'
 print("Loading training and testing data")
 train_DNAm_df = pd.read_pickle(sTrainFileName)
 
-young_df = train_DNAm_df[train_DNAm_df["Age"] <= 25]
+young_df = train_DNAm_df[train_DNAm_df["Age"] <= split_age]
 print(young_df.shape)
-old_df = train_DNAm_df[train_DNAm_df["Age"] > 25]
+old_df = train_DNAm_df[train_DNAm_df["Age"] > split_age]
 print(old_df.shape)
 
 young_df.to_pickle(sYoungFileName)
@@ -55,7 +61,7 @@ output_path = "output_files/",
 zero_met_replacement = 0.001,
 one_met_replacement = 0.999,
 min_age = 0,
-max_age = 25,
+max_age = split_age,
 age_step = 1,
 tau = 0.7)
 
@@ -65,7 +71,7 @@ reference_name = sOldReferenceMatrixName,
 output_path = "output_files/",
 zero_met_replacement = 0.001,
 one_met_replacement = 0.999,
-min_age = 26,
+min_age = split_age + 1,
 max_age = 100,
 age_step = 1,
 tau = 0.7)
