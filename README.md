@@ -137,7 +137,7 @@ Test the full range of cutoff ages 10-30 years. This process will require severa
 
 You can test any particular individual cutoff age by replacing the number in the command below with the cutoff age you wish to test.
 
-    ./TestSplitAge.sh 25
+    ./TestAgeSplit.sh 25
 
 Plot the results of your testing.
 
@@ -145,8 +145,8 @@ Plot the results of your testing.
 
 To test a cutoff age for the sex-specific models, use the following commands.
 
-    ./TestSplitAgeMale.sh 25
-    ./TestSplitAgeFemale.sh 25
+    ./TestAgeSplitMale.sh 25
+    ./TestAgeSplitFemale.sh 25
 
 Plot the results of sex-specific modeling.
 
@@ -167,6 +167,14 @@ Now use the optimized LASSO model to predict the age of the corresponding testin
 
 Using `LassoOptimizeParams.py` and `LassoAgePredict.py` as shown, you can train the LASSO model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.
 
+To test predict the age of all folds using LASSO regression, use the following command.
+
+    python LassoAgeFolds.py 0.01
+
+Plot the results of your testing.
+
+    python PlotBenchmark.py Predictions_LASSO.pickle
+
 ## ElasticNet Comparison
 
 First find the optimal ElasticNet parameters for a particular training dataset.
@@ -180,3 +188,11 @@ Now use the optimized ElasticNet model to predict the age of the corresponding t
     python ElasticNetAgePredict.py 0.001 0.72 0_train_DNAm_matrix.pickle 0_test_DNAm_matrix.pickle
 
 Using `ElasticNetOptimizeParams.py` and `ElasticNetAgePredict.py` as shown, you can train the ElasticNet model on any of the training data files you have produced so far and then make age predictions for their corresponding testing data files.
+
+To test predict the age of all folds using ElasticNet, use the following command.
+
+    python ElasticNetFolds.py 0.001 0.72
+
+Plot the results of your testing.
+
+    python PlotBenchmark.py Predictions_ElasticNet.pickle

@@ -18,7 +18,7 @@ if len (sys.argv) != 2:
 
 sLambdaParameter = sys.argv [1]
 
-# Optimized LASSO paramaters: 'alpha': 0.001
+# Optimized LASSO paramaters: 'alpha': 0.01
 lambda_param = float(sLambdaParameter)
 
 # Optimized LOWESS parameter: 'tau': 0.7
